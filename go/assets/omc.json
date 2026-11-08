@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "plugin_id": "omc-opencode-zen-free",
+  "plugin_version": "0.1.0",
+  "i18n": {
+    "description": {
+      "zh": "OpenCode Zen 免费模型提供商插件，使用共享的 public 凭证免密钥登录，自动发现 Zen 当前的免费模型，以 OpenCode 客户端身份发送 OpenAI 兼容请求，并保留工具调用与流式输出。可通过 CPA 原生面板安装；OMC 声明为可选增强。",
+      "en": "OpenCode Zen free-model provider for CLIProxyAPI with keyless public-credential sign-in, discovery of Zen's current free models, OpenCode-identity OpenAI-compatible execution, and preserved tool calls and streaming. Installable through the native CPA panel; the OMC declaration is an optional enhancement.",
+      "zh-Hant": "OpenCode Zen 免費模型提供者外掛，使用共享的 public 憑證免金鑰登入，自動探索 Zen 目前的免費模型，以 OpenCode 用戶端身分傳送 OpenAI 相容請求，並保留工具呼叫與串流輸出。可透過 CPA 原生面板安裝；OMC 宣告為選用增強功能。",
+      "ms": "Penyedia model percuma OpenCode Zen untuk CLIProxyAPI dengan log masuk kredensial awam tanpa kunci, penemuan model percuma Zen semasa, pelaksanaan serasi OpenAI dengan identiti OpenCode, serta panggilan alat dan penstriman yang dikekalkan. Boleh dipasang melalui panel CPA asli; deklarasi OMC ialah penambahbaikan pilihan."
+    }
+  }
+}
