@@ -25,10 +25,18 @@ const signInTimeout = 5 * time.Minute
 // recognize its own flow and expire it.
 const loginStatePrefix = credentialProvider + "."
 
-// startLogin mints a keyless sign-in. There is no page to open and no vendor
-// call to make: Zen's free tier accepts one public key, so the flow is complete
-// before the panel asks. The URL is empty on purpose, and the panel's first poll
-// receives the credential.
+// signInPageURL is what the panel opens when a user starts the sign-in. The
+// free tier has no browser page: the first poll already returns the public
+// credential. CPA's OAuth panel nevertheless refuses a plugin flow whose URL is
+// empty ("the plugin did not return complete browser authorization details"),
+// so the plugin names its own explanation of the keyless identity. Opening it is
+// optional; the account is added without leaving the panel.
+const signInPageURL = "https://github.com/omc-community/omc-opencode-zen-free#one-public-identity-no-key"
+
+// startLogin mints a keyless sign-in. There is no vendor call to make: Zen's
+// free tier accepts one public key, so the flow is complete before the panel
+// asks. The URL points at the plugin's own explanation because the panel
+// requires a non-empty one; the first poll receives the credential.
 func startLogin(req pluginapi.AuthLoginStartRequest) (pluginapi.AuthLoginStartResponse, error) {
 	var out pluginapi.AuthLoginStartResponse
 	if err := loginEntry(req.Provider); err != nil {
@@ -41,7 +49,7 @@ func startLogin(req pluginapi.AuthLoginStartRequest) (pluginapi.AuthLoginStartRe
 	expires := time.Now().Add(signInTimeout)
 	return pluginapi.AuthLoginStartResponse{
 		Provider:  credentialProvider,
-		URL:       "",
+		URL:       signInPageURL,
 		State:     loginState(expires, nonce),
 		ExpiresAt: expires.UTC(),
 	}, nil

@@ -156,7 +156,7 @@ func TestStartLoginMintsAKeylessState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if start.Provider != credentialProvider || start.URL != "" {
+	if start.Provider != credentialProvider || start.URL != signInPageURL {
 		t.Fatalf("start = %+v", start)
 	}
 	if !strings.HasPrefix(start.State, loginStatePrefix) || len(start.State) > 128 {

@@ -47,7 +47,10 @@ entry: there is no key field, and the first poll completes the flow.
 
 The credential it stores is the public identity itself. Signing in again replaces
 the same auth file instead of adding a second account, because no second account
-can exist.
+can exist. CPA's OAuth panel requires a plugin flow to return a URL, so the
+sign-in button names this project's explanation of the keyless identity; nothing
+has to be done there, because the panel's first poll already returns the
+credential.
 
 Personal Zen keys still belong to CPA's built-in OpenCode Zen provider (or
 OpenCode's own `opencode` provider), which takes several keys. This plugin is only

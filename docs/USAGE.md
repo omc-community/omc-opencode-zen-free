@@ -127,9 +127,10 @@ header. Do not put the key in a URL.
 
 ### Flow
 
-1. The plugin mints a state and returns it with an **empty URL**. There is no page
-   to open: the free tier accepts one public key, so there is nothing to ask the
-   user.
+1. The plugin mints a state and returns it with the project's explanation of the
+   keyless identity as the URL. CPA's OAuth panel refuses a plugin flow whose URL
+   is empty, so the plugin names that page. Opening it is optional: there is no
+   page to complete, and nothing is submitted there.
 2. The panel polls `GET /v8/management/oauth/status?state=<opaque-state>`. The
    **first poll succeeds** and returns the credential.
 3. The credential is saved as `opencode-zen-free-public.json` with
@@ -347,9 +348,11 @@ allowance is spent learns it from the `429` on the next request.
   was replaced.
 - **`unknown login entry: use opencode-zen-free`:** the login was started with
   another provider key. Start it from the `opencode-zen-free` entry.
-- **The panel shows no URL after starting a sign-in:** that is expected. The free
-  tier needs no browser page; the first poll completes the flow. If the panel waits
-  for a callback that never comes, poll the state once manually with
+- **The panel shows a link to the project README after starting a sign-in:** that
+  is expected. The free tier needs no browser page; the link is the plugin's
+  explanation because CPA's OAuth panel refuses an empty URL. The first poll
+  completes the flow, so there is nothing to do on that page. If the panel still
+  waits, poll the state once manually with
   `GET /v8/management/oauth/status?state=<state>`.
 - **`sign-in expired` on poll:** the state is older than five minutes. Start a new
   sign-in; the credential itself does not expire.

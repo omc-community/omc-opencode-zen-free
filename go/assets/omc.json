@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "plugin_id": "omc-opencode-zen-free",
-  "plugin_version": "0.1.0",
+  "plugin_version": "0.1.1",
   "i18n": {
     "description": {
       "zh": "OpenCode Zen 免费模型提供商插件，使用共享的 public 凭证免密钥登录，自动发现 Zen 当前的免费模型，以 OpenCode 客户端身份发送 OpenAI 兼容请求，并保留工具调用与流式输出。可通过 CPA 原生面板安装；OMC 声明为可选增强。",

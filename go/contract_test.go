@@ -84,7 +84,7 @@ func TestLoginRPCIsWired(t *testing.T) {
 		t.Fatal(err)
 	}
 	started := start.(pluginapi.AuthLoginStartResponse)
-	if started.State == "" || started.URL != "" || started.Provider != credentialProvider {
+	if started.State == "" || started.URL != signInPageURL || started.Provider != credentialProvider {
 		t.Fatalf("start = %+v", started)
 	}
 	poll, err := handleMethod("auth.login.poll", mustJSON(t, map[string]any{"State": started.State}))
