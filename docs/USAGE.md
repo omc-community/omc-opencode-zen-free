@@ -354,6 +354,10 @@ allowance is spent learns it from the `429` on the next request.
   completes the flow, so there is nothing to do on that page. If the panel still
   waits, poll the state once manually with
   `GET /v8/management/oauth/status?state=<state>`.
+- **The panel briefly shows a callback box:** expected. Because the panel requires
+  a URL, it classifies the keyless flow as a redirect until its first status poll
+  (about three seconds later) returns the credential. Do not paste anything; the
+  box disappears when that poll succeeds.
 - **`sign-in expired` on poll:** the state is older than five minutes. Start a new
   sign-in; the credential itself does not expire.
 - **No models appear:** the live list could not be read and neither a stored nor a
