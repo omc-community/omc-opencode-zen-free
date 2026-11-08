@@ -142,17 +142,17 @@ func execute(req pluginapi.ExecutorRequest, sender httpSender) (pluginapi.Execut
 		return pluginapi.ExecutorResponse{}, transportFailure(err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return pluginapi.ExecutorResponse{}, classifyUpstream(resp.StatusCode, resp.Body)
+		return pluginapi.ExecutorResponse{}, classifyUpstream(resp.StatusCode, resp.Headers, resp.Body)
 	}
 	if !bytes.Contains(resp.Body, []byte("data:")) {
 		// A 200 that is not an event stream is Zen refusing in JSON.
-		return pluginapi.ExecutorResponse{}, classifyUpstream(http.StatusBadGateway, resp.Body)
+		return pluginapi.ExecutorResponse{}, classifyUpstream(http.StatusBadGateway, resp.Headers, resp.Body)
 	}
 	payload, err := aggregateStream(resp.Body, plan.Model.Key, plan.Policy)
 	if err != nil {
 		var refusal *streamRefusal
 		if errors.As(err, &refusal) {
-			return pluginapi.ExecutorResponse{}, classifyUpstream(0, refusal.Data)
+			return pluginapi.ExecutorResponse{}, classifyUpstream(0, nil, refusal.Data)
 		}
 		return pluginapi.ExecutorResponse{}, pluginabi.NewError("upstream_error", err.Error(), 502)
 	}
@@ -328,7 +328,7 @@ func (p *streamPump) consume(events []sseFrame) ([][]byte, error) {
 	var out [][]byte
 	for _, event := range events {
 		if event.Name == "error" {
-			return out, classifyUpstream(0, event.Data)
+			return out, classifyUpstream(0, nil, event.Data)
 		}
 		if isDone(event.Data) {
 			if tail := p.guard.finishEvent(); tail != nil {
@@ -338,7 +338,7 @@ func (p *streamPump) consume(events []sseFrame) ([][]byte, error) {
 		}
 		frames, err := p.guard.apply(event.Data)
 		if err != nil {
-			return out, classifyUpstream(0, event.Data)
+			return out, classifyUpstream(0, nil, event.Data)
 		}
 		out = append(out, frames...)
 	}
@@ -438,7 +438,7 @@ func executeStream(req pluginapi.ExecutorRequest, callbackID, streamID string, s
 		if readErr != nil {
 			return nil, pluginabi.NewError("transport_error", "OpenCode Zen upstream stream failed", 503)
 		}
-		return nil, classifyUpstream(response.StatusCode, raw)
+		return nil, classifyUpstream(response.StatusCode, response.Headers, raw)
 	}
 	pump := &streamPump{source: response.StreamID, target: streamID, guard: newStreamGuard(plan.Policy)}
 	started := make(chan bool, 1)

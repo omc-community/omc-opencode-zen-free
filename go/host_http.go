@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/pluginabi"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/pluginapi"
@@ -134,9 +136,10 @@ func upstreamMessage(body []byte) (code, message, kind string) {
 
 // classifyUpstream maps a Zen refusal onto the status the client should see. A
 // 429 keeps its message, which says whether the shared daily allowance is spent,
-// and a 403 that names the OpenCode identity says the plugin needs updating
-// rather than the credential.
-func classifyUpstream(status int, body []byte) error {
+// and carries how long that allowance still runs, so CPA rests the model instead
+// of retrying it against a spent allowance. A 403 that names the OpenCode identity
+// says the plugin needs updating rather than the credential.
+func classifyUpstream(status int, headers http.Header, body []byte) error {
 	code, message, kind := upstreamMessage(body)
 	if message == "" {
 		message = http.StatusText(status)
@@ -177,7 +180,9 @@ func classifyUpstream(status int, body []byte) error {
 		if freeLimit {
 			message = message + ". Zen's shared free allowance is spent; it resets at 00:00 UTC."
 		}
-		return pluginabi.NewError("rate_limited", "OpenCode Zen is limiting this request: "+message, effective)
+		err := pluginabi.NewError("rate_limited", "OpenCode Zen is limiting this request: "+message, effective)
+		err.RetryAfterSeconds = retryHint(headers, freeLimit, time.Now())
+		return err
 	case effective == http.StatusNotFound:
 		return pluginabi.NewError("not_found", "OpenCode Zen: "+message, effective)
 	case effective >= 500:
@@ -187,6 +192,44 @@ func classifyUpstream(status int, body []byte) error {
 	default:
 		return pluginabi.NewError("upstream_error", "OpenCode Zen: "+message, http.StatusBadGateway)
 	}
+}
+
+// retryHint is how long a limit still runs, in whole seconds, or 0 when nothing
+// says. A Retry-After the upstream sends is the vendor's own statement and wins;
+// otherwise a spent free allowance is read from the reset Zen publishes for it,
+// 00:00 UTC. The number reaches CPA as the cooldown it applies to the model.
+func retryHint(headers http.Header, freeLimit bool, now time.Time) int {
+	if headers != nil {
+		if value := strings.TrimSpace(headers.Get("Retry-After")); value != "" {
+			if seconds, err := strconv.Atoi(value); err == nil && seconds > 0 {
+				return seconds
+			}
+			if at, err := http.ParseTime(value); err == nil {
+				if seconds := secondsUntil(at, now); seconds > 0 {
+					return seconds
+				}
+				return 0
+			}
+		}
+	}
+	if !freeLimit {
+		return 0
+	}
+	utc := now.UTC()
+	return secondsUntil(time.Date(utc.Year(), utc.Month(), utc.Day(), 0, 0, 0, 0, time.UTC).Add(24*time.Hour), now)
+}
+
+// secondsUntil is the wait to at in whole seconds, 0 once it has passed. A wait
+// under a second still counts as one: CPA treats zero as "no deadline".
+func secondsUntil(at, now time.Time) int {
+	wait := at.Sub(now)
+	if wait <= 0 {
+		return 0
+	}
+	if seconds := int(wait / time.Second); seconds > 0 {
+		return seconds
+	}
+	return 1
 }
 
 // countTokens is not supported: Zen documents no token-count endpoint, and a

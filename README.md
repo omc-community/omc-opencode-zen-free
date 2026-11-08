@@ -106,7 +106,10 @@ ones, not as a credential failure, so CPA can route the request elsewhere.
 - Per-credential concurrency control.
 - Import of an existing `"type": "opencode-zen-free"` auth file.
 - Error mapping that keeps the shared-allowance 429 and an identity 403 on their
-  own status codes instead of folding them into a generic upstream failure.
+  own status codes instead of folding them into a generic upstream failure. A limit
+  also states how long it still runs — the upstream's `Retry-After` when it sends
+  one, otherwise the free tier's 00:00 UTC reset — so CPA rests the model instead
+  of retrying against a spent allowance.
 
 ## Installation
 
