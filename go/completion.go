@@ -83,19 +83,22 @@ func isDone(data []byte) bool { return strings.TrimSpace(string(data)) == "[DONE
 
 // chatChunk is one streamed chat chunk, in the shape Zen sends.
 type chatChunk struct {
-	ID      string          `json:"id"`
-	Object  string          `json:"object"`
-	Created int64           `json:"created"`
-	Model   string          `json:"model"`
-	Choices []chatChoice    `json:"choices"`
-	Usage   json.RawMessage `json:"usage"`
+	ID                string          `json:"id"`
+	Object            string          `json:"object"`
+	Created           int64           `json:"created"`
+	Model             string          `json:"model"`
+	SystemFingerprint string          `json:"system_fingerprint,omitempty"`
+	ServiceTier       string          `json:"service_tier,omitempty"`
+	Choices           []chatChoice    `json:"choices"`
+	Usage             json.RawMessage `json:"usage"`
 }
 
 type chatChoice struct {
-	Index        int        `json:"index"`
-	Delta        *chatDelta `json:"delta"`
-	Message      *chatDelta `json:"message"`
-	FinishReason *string    `json:"finish_reason"`
+	Index        int             `json:"index"`
+	Delta        *chatDelta      `json:"delta"`
+	Message      *chatDelta      `json:"message"`
+	FinishReason *string         `json:"finish_reason"`
+	Logprobs     json.RawMessage `json:"logprobs,omitempty"`
 }
 
 type chatDelta struct {
@@ -103,6 +106,7 @@ type chatDelta struct {
 	Content          json.RawMessage `json:"content"`
 	ReasoningContent string          `json:"reasoning_content"`
 	Reasoning        string          `json:"reasoning"`
+	Refusal          json.RawMessage `json:"refusal,omitempty"`
 	ToolCalls        []toolCallDelta `json:"tool_calls"`
 	FunctionCall     *functionDelta  `json:"function_call"`
 }
@@ -232,6 +236,10 @@ func (c *choiceAcc) apply(delta *chatDelta) {
 		c.reasoning.WriteString(delta.Reasoning)
 		c.answered = true
 	}
+	if text := contentText(delta.Refusal); text != "" {
+		c.content.WriteString(text)
+		c.answered = true
+	}
 	for _, fragment := range delta.ToolCalls {
 		acc := c.calls[fragment.Index]
 		if acc == nil {
@@ -282,13 +290,15 @@ func contentText(raw json.RawMessage) string {
 // streams every chat, so a client that asked for one answer gets the stream read
 // out for it.
 type completionBuilder struct {
-	id      string
-	model   string
-	created int64
-	usage   json.RawMessage
-	choices map[int]*choiceAcc
-	order   []int
-	done    bool
+	id          string
+	model       string
+	created     int64
+	fingerprint string
+	tier        string
+	usage       json.RawMessage
+	choices     map[int]*choiceAcc
+	order       []int
+	done        bool
 }
 
 func newCompletionBuilder(model string) *completionBuilder {
@@ -317,6 +327,12 @@ func (b *completionBuilder) feed(data []byte) error {
 	}
 	if chunk.Created > 0 {
 		b.created = chunk.Created
+	}
+	if chunk.SystemFingerprint != "" {
+		b.fingerprint = chunk.SystemFingerprint
+	}
+	if chunk.ServiceTier != "" {
+		b.tier = chunk.ServiceTier
 	}
 	if len(chunk.Usage) > 0 && string(chunk.Usage) != "null" {
 		b.usage = append(json.RawMessage(nil), chunk.Usage...)
@@ -434,6 +450,12 @@ func (b *completionBuilder) completion(policy toolPolicy) ([]byte, error) {
 	if b.created == 0 {
 		delete(out, "created")
 	}
+	if b.fingerprint != "" {
+		out["system_fingerprint"] = b.fingerprint
+	}
+	if b.tier != "" {
+		out["service_tier"] = b.tier
+	}
 	if len(b.usage) > 0 {
 		out["usage"] = b.usage
 	}
@@ -481,18 +503,20 @@ const cutShortNote = "(The reply was cut short: Zen closed the stream before it 
 // arguments are whole, then sent once under the agent's own name. Holding it
 // also lets a call with no name be left out and said so in the reply's text.
 type streamGuard struct {
-	policy    toolPolicy
-	id        string
-	model     string
-	created   int64
-	choices   map[int]*streamChoice
-	order     []int
-	open      map[int]bool
-	openOrder []int
-	wrote     map[int]bool
-	ended     map[int]bool
-	said      bool
-	finished  bool
+	policy      toolPolicy
+	id          string
+	model       string
+	created     int64
+	fingerprint string
+	tier        string
+	choices     map[int]*streamChoice
+	order       []int
+	open        map[int]bool
+	openOrder   []int
+	wrote       map[int]bool
+	ended       map[int]bool
+	said        bool
+	finished    bool
 }
 
 type streamChoice struct {
@@ -547,6 +571,12 @@ func (g *streamGuard) apply(data []byte) ([][]byte, error) {
 	}
 	if chunk.Created > 0 {
 		g.created = chunk.Created
+	}
+	if chunk.SystemFingerprint != "" {
+		g.fingerprint = chunk.SystemFingerprint
+	}
+	if chunk.ServiceTier != "" {
+		g.tier = chunk.ServiceTier
 	}
 	if len(chunk.Choices) == 0 {
 		return [][]byte{data}, nil
@@ -635,6 +665,7 @@ func (g *streamGuard) complete(state *streamChoice, index int, delta *chatDelta)
 		out.Content = delta.Content
 		out.ReasoningContent = delta.ReasoningContent
 		out.Reasoning = delta.Reasoning
+		out.Refusal = delta.Refusal
 	}
 	var notes []string
 	var calls []toolCallDelta
@@ -693,7 +724,8 @@ func deltaEmpty(delta *chatDelta) bool {
 		return true
 	}
 	return delta.Role == "" && len(delta.Content) == 0 && delta.ReasoningContent == "" &&
-		delta.Reasoning == "" && len(delta.ToolCalls) == 0 && delta.FunctionCall == nil
+		delta.Reasoning == "" && len(delta.Refusal) == 0 && len(delta.ToolCalls) == 0 &&
+		delta.FunctionCall == nil
 }
 
 // finishEvent is the frame that carries calls still buffered when the stream's
@@ -703,10 +735,12 @@ func (g *streamGuard) finishEvent() []byte {
 		return nil
 	}
 	chunk := chatChunk{
-		ID:      firstNonEmpty(g.id, "chatcmpl-"+randomHex(12)),
-		Object:  "chat.completion.chunk",
-		Created: g.created,
-		Model:   g.model,
+		ID:                firstNonEmpty(g.id, "chatcmpl-"+randomHex(12)),
+		Object:            "chat.completion.chunk",
+		Created:           g.created,
+		Model:             g.model,
+		SystemFingerprint: g.fingerprint,
+		ServiceTier:       g.tier,
 	}
 	for _, index := range g.order {
 		state := g.choices[index]
@@ -735,10 +769,12 @@ func (g *streamGuard) cutShort() ([]byte, error) {
 		return nil, errors.New("OpenCode Zen ended the stream without a completion marker")
 	}
 	chunk := chatChunk{
-		ID:      firstNonEmpty(g.id, "chatcmpl-"+randomHex(12)),
-		Object:  "chat.completion.chunk",
-		Created: g.created,
-		Model:   g.model,
+		ID:                firstNonEmpty(g.id, "chatcmpl-"+randomHex(12)),
+		Object:            "chat.completion.chunk",
+		Created:           g.created,
+		Model:             g.model,
+		SystemFingerprint: g.fingerprint,
+		ServiceTier:       g.tier,
 	}
 	for _, index := range g.openOrder {
 		if !g.open[index] {
