@@ -64,6 +64,7 @@ func resetPluginState() {
 	zen.catalog = map[string]catalogModel{}
 	zen.providerNPM = sdkChat
 	zen.listed = false
+	zen.stored = false
 	zen.listedAt = time.Time{}
 	zen.attempted = time.Time{}
 	zen.version = defaultOpenCodeVersion
@@ -331,6 +332,7 @@ func TestTheLastGoodListOutlivesTheProcess(t *testing.T) {
 	zen.mu.Lock()
 	zen.known = bootstrapChatModels()
 	zen.listed = false
+	zen.stored = false
 	zen.listedAt = time.Time{}
 	zen.attempted = time.Time{}
 	zen.mu.Unlock()
@@ -408,6 +410,36 @@ func TestModelsApplyTheContextFloor(t *testing.T) {
 	}
 	if len(out.Models) != 1 || out.Models[0].ContextLength != 258624 {
 		t.Fatalf("models = %+v", out.Models)
+	}
+}
+
+func TestAStoredListOutranksTheShippedBootstrap(t *testing.T) {
+	resetPluginState()
+	dir := t.TempDir()
+	setAuthDir(dir)
+	defer setAuthDir("")
+	live := discoveryReply{listing: `{"data":[{"id":"beam-free","cost":{"text":{"input":{"price":0},"output":{"price":0}}},"api":{"chat-completions":{}}}]}`}
+	if _, err := modelsForAuth(pluginapi.AuthModelRequest{StorageJSON: testCredential()}, live.sender()); err != nil {
+		t.Fatal(err)
+	}
+	// A restart, then Zen cannot be read. The stored list is the only one this
+	// process knows; a bootstrap model it left out is not free now.
+	zen.mu.Lock()
+	zen.known = bootstrapChatModels()
+	zen.listed = false
+	zen.stored = false
+	zen.listedAt = time.Time{}
+	zen.attempted = time.Time{}
+	zen.mu.Unlock()
+	storeMu.Lock()
+	storeLoaded = false
+	storeMu.Unlock()
+	failed := discoveryReply{listingStatus: 503}.sender()
+	if _, ok := findModel(failed, "beam-free"); !ok {
+		t.Fatal("the stored model was not found")
+	}
+	if _, ok := findModel(failed, "big-pickle"); ok {
+		t.Fatal("a bootstrap model the stored list left out was served")
 	}
 }
 

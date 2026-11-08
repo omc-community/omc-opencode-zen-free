@@ -59,6 +59,7 @@ type discoveryState struct {
 	catalog     map[string]catalogModel
 	providerNPM string
 	listed      bool
+	stored      bool
 	listedAt    time.Time
 	attempted   time.Time
 
@@ -379,16 +380,18 @@ func findModel(sender httpSender, model string) (zenModel, bool) {
 	zen.mu.Lock()
 	attempted := zen.attempted
 	listed := zen.listed
+	stored := zen.stored
 	zen.mu.Unlock()
 	if time.Since(attempted) >= relistAfter {
 		if m, ok := look(discover(sender, true)); ok {
 			return m, true
 		}
 	}
-	// The shipped list stands in only while Zen's own list has never been read.
-	// Once a live list has been read, a model it left out is not free now, and
-	// serving it from the bootstrap would earn the same refusal again.
-	if !listed {
+	// The shipped list stands in only while Zen's own list has never been read
+	// in this process or a previous one. Once a live list has been read, a model
+	// it left out is not free now, and serving it from the bootstrap would earn
+	// the same refusal again.
+	if !listed && !stored {
 		for _, seed := range bootstrapCatalogue {
 			if strings.ToLower(seed.Key) == want && bootstrapProtocols[seed.Key] == "chat" {
 				return modelFromSeed(seed), true

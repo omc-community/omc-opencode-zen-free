@@ -78,6 +78,7 @@ func ensureStoredModels() {
 	zen.mu.Lock()
 	if !zen.listed {
 		zen.known = loaded
+		zen.stored = true
 	}
 	zen.mu.Unlock()
 	storeMu.Unlock()
