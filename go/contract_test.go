@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/pluginabi"
@@ -114,6 +115,73 @@ func TestParseAuthReadsPersistedFile(t *testing.T) {
 	var c credential
 	if json.Unmarshal(resp.Auth.StorageJSON, &c) != nil || c.Access != publicKey {
 		t.Fatalf("credential = %+v", c)
+	}
+}
+
+// The management API writes fields such as note next to the credential, and CPA
+// rebuilds the runtime auth from parseAuth's metadata on every reload. A parser
+// that republishes identity keys alone makes those writes read back as
+// unpersisted (the console reports "CPA did not persist note").
+func TestParseAuthPreservesManagementFields(t *testing.T) {
+	persisted := map[string]any{
+		"type":            credentialProvider,
+		"access":          publicKey,
+		"oauth_provider":  "stale-entry",
+		"note":            "work account",
+		"prefix":          "o",
+		"priority":        7,
+		"weight":          3,
+		"proxy_url":       "http://proxy.test:8080",
+		"disable_cooling": true,
+		"websockets":      false,
+		"using_api":       true,
+		"expired":         "2030-01-01T00:00:00Z",
+		"request_retry":   2,
+		"headers":         map[string]any{"X-Test": "1"},
+		"excluded_models": []any{"m1"},
+		"model_aliases":   []any{map[string]any{"name": "m", "alias": "a"}},
+	}
+	body, err := json.Marshal(persisted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want map[string]any
+	if err := json.Unmarshal(body, &want); err != nil {
+		t.Fatal(err)
+	}
+	credentialKeys := map[string]bool{"access": true}
+	resp := parseAuth(pluginapi.AuthParseRequest{Provider: credentialProvider, FileName: authFileName, RawJSON: body})
+	if !resp.Handled {
+		t.Fatal("credential not recognized")
+	}
+	for key, expected := range want {
+		switch key {
+		case "type", "oauth_provider":
+			continue
+		}
+		if credentialKeys[key] {
+			continue
+		}
+		if got := resp.Auth.Metadata[key]; !reflect.DeepEqual(got, expected) {
+			t.Fatalf("metadata[%q] = %#v, want %#v", key, got, expected)
+		}
+	}
+	if got := resp.Auth.Metadata["type"]; got != credentialProvider {
+		t.Fatalf("type = %#v", got)
+	}
+	if got := resp.Auth.Metadata["email"]; got != authLabel {
+		t.Fatalf("email = %#v", got)
+	}
+	if got := resp.Auth.Metadata["oauth_provider"]; got != credentialProvider {
+		t.Fatalf("oauth_provider = %#v", got)
+	}
+	for key := range credentialKeys {
+		if _, ok := resp.Auth.Metadata[key]; ok {
+			t.Fatalf("metadata[%q] echoed the credential; a stale copy would overwrite refreshed storage", key)
+		}
+	}
+	if string(resp.Auth.StorageJSON) != string(body) {
+		t.Fatal("storage did not round-trip the auth file")
 	}
 }
 

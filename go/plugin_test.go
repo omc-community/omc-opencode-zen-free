@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -234,6 +235,44 @@ func TestRefreshReturnsTheSamePublicCredential(t *testing.T) {
 	var perr *pluginabi.Error
 	if !errors.As(err, &perr) || perr.HTTPStatus != http.StatusUnauthorized {
 		t.Fatalf("err = %#v", err)
+	}
+}
+
+// A refresh replaces the auth record CPA persists, and its merge treats a field
+// the refresh omits as deleted. The host-managed metadata must therefore
+// survive a refresh, or the note (and every other management field) disappears
+// from the credential.
+func TestRefreshPreservesManagementFields(t *testing.T) {
+	resetPluginState()
+	metadata := map[string]any{
+		"note":            "work account",
+		"prefix":          "o",
+		"priority":        7,
+		"weight":          3,
+		"proxy_url":       "http://proxy.test:8080",
+		"disable_cooling": true,
+		"websockets":      false,
+		"using_api":       true,
+		"expired":         "2030-01-01T00:00:00Z",
+		"request_retry":   2,
+		"headers":         map[string]any{"X-Test": "1"},
+		"excluded_models": []any{"m1"},
+		"model_aliases":   []any{map[string]any{"name": "m", "alias": "a"}},
+	}
+	resp, err := refreshCredential(pluginapi.AuthRefreshRequest{AuthID: authFileName, StorageJSON: testCredential(), Metadata: metadata})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range metadata {
+		if got := resp.Auth.Metadata[key]; !reflect.DeepEqual(got, want) {
+			t.Fatalf("metadata[%q] = %#v, want %#v", key, got, want)
+		}
+	}
+	if got := resp.Auth.Metadata["type"]; got != credentialProvider {
+		t.Fatalf("type = %#v", got)
+	}
+	if _, ok := resp.Auth.Metadata["access"]; ok {
+		t.Fatal("refresh echoed the credential into metadata")
 	}
 }
 
