@@ -78,6 +78,25 @@ func TestAuthIdentifierPublishesOneEntry(t *testing.T) {
 	}
 }
 
+func TestLoginRPCIsWired(t *testing.T) {
+	start, err := handleMethod("auth.login.start", mustJSON(t, map[string]any{"Provider": credentialProvider}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := start.(pluginapi.AuthLoginStartResponse)
+	if started.State == "" || started.URL != "" || started.Provider != credentialProvider {
+		t.Fatalf("start = %+v", started)
+	}
+	poll, err := handleMethod("auth.login.poll", mustJSON(t, map[string]any{"State": started.State}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	finished := poll.(pluginapi.AuthLoginPollResponse)
+	if finished.Status != pluginapi.AuthLoginStatusSuccess || finished.Auth.Provider != credentialProvider {
+		t.Fatalf("poll = %+v", finished)
+	}
+}
+
 func TestParseAuthReadsPersistedFile(t *testing.T) {
 	body := []byte(`{"type":"opencode-zen-free","access":"public"}`)
 	req, _ := json.Marshal(pluginapi.AuthParseRequest{Provider: credentialProvider, FileName: "opencode-zen-free-public.json", RawJSON: body})
