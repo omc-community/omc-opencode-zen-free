@@ -137,20 +137,20 @@ func TestProjectIDNamesARepositoryByItsRemote(t *testing.T) {
 
 func TestProjectIDNamesAPlainDirectory(t *testing.T) {
 	resetPluginState()
-	// A directory inside this repository: its nearest .git has no remote, so it
-	// is named by that repository root, as OpenCode names a repository with no
-	// remote by its directory.
-	dir, err := os.MkdirTemp(".", "plain-")
-	if err != nil {
+	// A repository with no remote is named by its directory. The fixture owns
+	// the nearest .git and has no config in it, so the checkout's own remote
+	// never decides the answer.
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(dir)
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	root, remote := repository(localDirectory(abs))
-	if remote != "" || root == "" {
+	local := localDirectory(abs)
+	root, remote := repository(local)
+	if remote != "" || root != local {
 		t.Fatalf("fixture repository = %q %q", root, remote)
 	}
 	chat := map[string]any{"messages": []any{map[string]any{"role": "system", "content": "Working directory: " + abs}}}
