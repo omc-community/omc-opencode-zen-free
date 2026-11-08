@@ -97,6 +97,15 @@ def smoke(library, version, descriptor):
                 raise ValueError("native OAuth entry is missing a display name or logo")
             if entry["name"] != expected_name or not entry["logo"].endswith("/" + expected_asset):
                 raise ValueError(f"native OAuth entry {entry.get('identifier')} has the wrong name or logo")
+        # The keyless sign-in must answer the panel's contract: a non-empty URL
+        # (Oh-My-CPA refuses an empty one before polling) and a state whose first
+        # poll already returns the public credential.
+        start = rpc("auth.login.start", {"Provider": CREDENTIAL_PROVIDER})
+        if not isinstance(start.get("URL"), str) or not start["URL"].startswith("https://") or not start.get("State"):
+            raise ValueError("native sign-in must return an https URL and a state")
+        poll = rpc("auth.login.poll", {"State": start["State"]})
+        if poll.get("Status") != "success" or (poll.get("Auth") or {}).get("Provider") != CREDENTIAL_PROVIDER:
+            raise ValueError("native sign-in did not return the public credential on its first poll")
         for method in ("executor.identifier", "quota.identifier"):
             if rpc(method, {}).get("identifier") != CREDENTIAL_PROVIDER:
                 raise ValueError(f"native {method} must stay on the opencode-zen-free provider key")
