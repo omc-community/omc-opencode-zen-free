@@ -213,9 +213,10 @@ Every chat is sent to
 headers OpenCode 2.2.5 sends, in its order:
 
 - `Authorization: Bearer public`, `Content-Type: application/json`.
-- `User-Agent: opencode/latest/<version>/cli`, where the version is the configured
-  floor raised by OpenCode's updater (`https://opencode.ai/update/api/latest/cli/npm`,
-  asked at most every six hours).
+- `User-Agent: opencode/latest/<version>/cli`, in the shape OpenCode 2.2.5 sent,
+  where the version is the configured floor raised by OpenCode's updater
+  (`https://opencode.ai/update/api/latest/cli/npm`, asked at most every six
+  hours).
 - `b3` and `traceparent`: one trace a conversation, a new span each request.
 - `x-opencode-client: cli`.
 - `x-opencode-project`: the client's own header when it sends one; else

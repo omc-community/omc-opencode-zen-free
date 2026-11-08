@@ -50,11 +50,11 @@ provider），那里可以配置多个 Key。本插件只负责共享的免费�
 
 ## Zen 的要求，以及插件的做法
 
-Zen 免费层只服务 OpenCode 自己的请求。插件逐项发送 OpenCode 2.2.5 发送的内容，顺序
-也一致：
+Zen 免费层只服务 OpenCode 自己的请求。插件逐项发送 OpenCode 2 发送的内容，顺序也
+一致：
 
-- OpenCode 的 `User-Agent`（`opencode/latest/<version>/cli`），版本来自 OpenCode 自己
-  的更新接口，而不是写死在发布里。
+- OpenCode 的 `User-Agent`（`opencode/latest/<version>/cli`），形状来自 2.2.5；版本
+  来自 OpenCode 自己的更新接口，而不是写死在发布里。
 - 它的 `b3` 与 `traceparent` 追踪头：一个会话一条 trace，每个请求一个新 span。
 - 它的 project id：`sha1("directory:" + 目录)`；当本机能读到该目录的仓库时，使用仓库
   的 remote。

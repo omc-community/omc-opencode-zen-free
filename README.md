@@ -56,10 +56,11 @@ the shared free tier.
 ## What Zen requires, and what the plugin does
 
 Zen's free tier answers a request only when it is OpenCode's own. The plugin
-sends exactly what OpenCode 2.2.5 sends, header for header and in its order:
+sends exactly what OpenCode 2 sends, header for header and in its order:
 
-- OpenCode's `User-Agent` (`opencode/latest/<version>/cli`), with the version kept
-  current from OpenCode's own updater rather than frozen in a release.
+- OpenCode's `User-Agent` (`opencode/latest/<version>/cli`), in the shape 2.2.5
+  sent, with the version kept current from OpenCode's own updater rather than
+  frozen in a release.
 - Its `b3` and `traceparent` trace headers, one trace a conversation and a new
   span each request.
 - Its project id, `sha1("directory:" + folder)`, or the repository's remote when
