@@ -49,9 +49,10 @@ func TestClassifyCarriesTheRetryHint(t *testing.T) {
 		name string
 		body string
 		want int
+		wide bool
 	}{
-		{"free allowance", `{"error":{"message":"Free models work in OpenCode","type":"FreeUsageLimitError"}}`, 120},
-		{"generic rate limit", `{"error":{"message":"rate_limit reached","type":"rate_limit_error"}}`, 120},
+		{"free allowance", `{"error":{"message":"Free models work in OpenCode","type":"FreeUsageLimitError"}}`, 120, true},
+		{"generic rate limit", `{"error":{"message":"rate_limit reached","type":"rate_limit_error"}}`, 120, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			err := classifyUpstream(http.StatusTooManyRequests, headers, []byte(tc.body))
@@ -61,6 +62,9 @@ func TestClassifyCarriesTheRetryHint(t *testing.T) {
 			}
 			if perr.RetryAfterSeconds != tc.want {
 				t.Fatalf("RetryAfterSeconds = %d, want %d", perr.RetryAfterSeconds, tc.want)
+			}
+			if perr.CredentialScoped != tc.wide {
+				t.Fatalf("CredentialScoped = %v, want %v", perr.CredentialScoped, tc.wide)
 			}
 		})
 	}
@@ -87,5 +91,8 @@ func TestExecuteCarriesTheFreeAllowanceReset(t *testing.T) {
 	want := retryHint(nil, true, time.Now())
 	if perr.RetryAfterSeconds < want-5 || perr.RetryAfterSeconds > want {
 		t.Fatalf("RetryAfterSeconds = %d, want about %d", perr.RetryAfterSeconds, want)
+	}
+	if !perr.CredentialScoped {
+		t.Fatalf("CredentialScoped = false, want the shared allowance to cool the credential")
 	}
 }

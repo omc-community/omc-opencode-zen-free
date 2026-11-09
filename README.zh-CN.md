@@ -48,7 +48,9 @@ Zen 免费层不是付费套餐，也没有账号专属密钥。每个 OpenCode 
 按钮指向本项目对免密钥身份说明；该页面无需任何操作，面板第一次轮询就会返回凭证。
 
 个人 Zen Key 仍属于 CPA 内置的 OpenCode Zen provider（或 OpenCode 自己的 `opencode`
-provider），那里可以配置多个 Key。本插件只负责共享的免费层。
+provider），那里可以配置多个 Key。本插件只负责共享的免费层。该共享额度按凭证整体计算：
+`FreeUsageLimitError` 会在 **CPA v8.0.62+** 上冷却该凭证可达的全部免费模型；更旧的宿主只
+冷却上报的模型。
 
 ## Zen 的要求，以及插件的做法
 

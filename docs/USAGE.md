@@ -6,7 +6,10 @@
 - A CPA build that accepts the plugin's declared ABI and RPC schema: the plugin
   registers ABI 1 and schema 10 from its pinned SDK, and an older host refuses it
   at registration with `plugin schema version 10 is not supported`.
-- **CPA v8.0.49 or later** to load the plugin (schema 10 first shipped there).
+- **CPA v8.0.49 or later** to load the plugin (schema 10 first shipped there), and
+  **CPA v8.0.62 or later** for credential-wide cooldowns: a spent shared free
+  allowance cools every model of the credential. An older host ignores the scope
+  and cools only the reporting model.
 - Go 1.27.1 for local development. Release builds are produced by CI.
 
 Sign-in and a live chat are not covered by an offline test. The unit tests drive
@@ -302,6 +305,10 @@ the mapped status:
 | `5xx` | `502` |
 | Transport failure, or an unavailable upstream stream | `503` |
 | The caller closed the request before Zen answered (`context canceled`) | `499`, code `client_closed` |
+
+A `FreeUsageLimitError` (`429`) is reported as credential-wide: the shared free
+allowance covers every free model the public credential reaches, so they cool
+together until Zen's reset. A plain `429` without that type stays model-scoped.
 | Zen did not answer within the host's limit (`deadline exceeded`) | `504`, code `upstream_timeout` |
 
 Other behaviour worth knowing:

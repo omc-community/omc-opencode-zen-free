@@ -54,7 +54,9 @@ credential.
 
 Personal Zen keys still belong to CPA's built-in OpenCode Zen provider (or
 OpenCode's own `opencode` provider), which takes several keys. This plugin is only
-the shared free tier.
+the shared free tier. That shared allowance is credential-wide: a spent
+`FreeUsageLimitError` cools every free model the public credential reaches on
+**CPA v8.0.62+**; an older host cools only the reporting model.
 
 ## What Zen requires, and what the plugin does
 

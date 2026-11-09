@@ -182,6 +182,10 @@ func classifyUpstream(status int, headers http.Header, body []byte) error {
 		}
 		err := pluginabi.NewError("rate_limited", "OpenCode Zen is limiting this request: "+message, effective)
 		err.RetryAfterSeconds = retryHint(headers, freeLimit, time.Now())
+		// The free allowance is shared by every model the public credential can
+		// reach, so a spent allowance cools the credential; a plain rate limit
+		// stays scoped to the requested model.
+		err.CredentialScoped = freeLimit
 		return err
 	case effective == http.StatusNotFound:
 		return pluginabi.NewError("not_found", "OpenCode Zen: "+message, effective)
