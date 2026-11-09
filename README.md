@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  OpenCode Zen's free models in
+  OpenCode Zen's free models adapted for Oh-My-CPA, compatible with
   <a href="https://github.com/router-for-me/CLIProxyAPI">CLIProxyAPI</a>
 </p>
 

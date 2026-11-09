@@ -14,8 +14,9 @@
 </p>
 
 <p align="center">
-  为 <a href="https://github.com/router-for-me/CLIProxyAPI">CLIProxyAPI</a>
-  提供 OpenCode Zen 免费模型
+  专为 Oh-My-CPA 适配，兼容
+  <a href="https://github.com/router-for-me/CLIProxyAPI">CLIProxyAPI</a>
+  的 OpenCode Zen 免费模型
 </p>
 
 <p align="center">
